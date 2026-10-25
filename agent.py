@@ -34,10 +34,8 @@ def get_client():
         api_key=key,
         base_url="https://api.groq.com/openai/v1"
     )
-
-
 def call_ai(prompt: str) -> str:
-    """Send a prompt to Groq and return the response."""
+    """Send a compact prompt to Groq."""
     client = get_client()
 
     if client is None:
@@ -48,11 +46,18 @@ def call_ai(prompt: str) -> str:
             "For Streamlit Cloud, add it under **Settings → Secrets**."
         )
 
-    # Groq model — NOT the API key
     model = os.getenv(
-    "GROQ_MODEL",
-    "openai/gpt-oss-120b"
-)
+        "GROQ_MODEL",
+        "openai/gpt-oss-120b"
+    )
+
+    # Keep the request below Groq's token limit
+    max_chars = 24000
+
+    if len(prompt) > max_chars:
+        prompt = prompt[:max_chars] + (
+            "\n\n[Additional context shortened to fit the AI request limit.]"
+        )
 
     try:
         response = client.chat.completions.create(
@@ -63,7 +68,8 @@ def call_ai(prompt: str) -> str:
                     "content": prompt
                 }
             ],
-            temperature=0.7,
+            temperature=0.5,
+            max_tokens=1500,
         )
 
         return response.choices[0].message.content
@@ -73,7 +79,6 @@ def call_ai(prompt: str) -> str:
             f"⚠️ **AI request failed.**\n\n"
             f"Error: `{str(e)}`"
         )
-
 
 def generate_plan(goal: str, days: int, hours: float) -> str:
     prompt = f"""
